@@ -1,0 +1,12 @@
+{
+  "name": "garmin-nav-exporter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Convert Google Maps share URLs into GPX waypoints for Garmin (PWA + serverless API).",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
