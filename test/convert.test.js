@@ -71,6 +71,18 @@ test('buildGpx emits valid GPX with provided name', () => {
   assert.match(gpx, /<name>Test Point<\/name>/);
 });
 
+test('buildGpx emits a 2-point route so Garmin Connect imports it as a course', () => {
+  const gpx = buildGpx({
+    lat: 40.7128,
+    lng: -74.006,
+    name: 'Test Point',
+    sourceUrl: 'https://example.com/x',
+  });
+  assert.match(gpx, /<rte>/);
+  assert.match(gpx, /<rtept lat="40\.712790" lon="-74\.006000">/);
+  assert.match(gpx, /<rtept lat="40\.712800" lon="-74\.006000">/);
+});
+
 test('nameFromUrl pulls first part of q= as place name', () => {
   const url =
     'https://www.google.com/maps?q=Bowie,+Regentesselaan+24A,+2562+CS+Den+Haag&ftid=0x47c5b100b2cd03bb:0x7d8022750de4848b';

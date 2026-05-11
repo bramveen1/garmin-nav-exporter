@@ -213,6 +213,11 @@ function escapeXml(s) {
 function buildGpx({ lat, lng, name, sourceUrl }) {
   const ts = new Date().toISOString();
   const wptName = escapeXml(name && name.trim() ? name.trim() : 'Google Maps Pin');
+  // Garmin Connect's course import rejects single-waypoint GPX ("File is not a course type").
+  // Emit a 2-point route with a ~1m offset start so the file imports as a course; keep
+  // the wpt so other tools still see the pin.
+  const startLat = lat - 0.00001;
+  const startLng = lng;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="garmin-nav-exporter" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <metadata>
@@ -224,6 +229,15 @@ function buildGpx({ lat, lng, name, sourceUrl }) {
     <name>${wptName}</name>
     <sym>Flag, Blue</sym>
   </wpt>
+  <rte>
+    <name>${wptName}</name>
+    <rtept lat="${startLat.toFixed(6)}" lon="${startLng.toFixed(6)}">
+      <name>Start</name>
+    </rtept>
+    <rtept lat="${lat.toFixed(6)}" lon="${lng.toFixed(6)}">
+      <name>${wptName}</name>
+    </rtept>
+  </rte>
 </gpx>
 `;
 }
