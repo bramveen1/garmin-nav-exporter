@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0b6" />
-    <title>Maps -> GPX</title>
+    <title>Maps -> Garmin</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
@@ -131,9 +131,10 @@
   </head>
   <body>
     <main>
-      <h1>Maps → GPX</h1>
+      <h1>Maps → Garmin</h1>
       <p class="lede">
-        Paste a Google Maps share link (or shared text) to download a GPX waypoint for Garmin.
+        Paste a Google Maps share link (or shared text) to download a TCX course for Garmin
+        Connect (GPX available with <code>?gpx=1</code>).
       </p>
 
       <form id="form">
@@ -150,10 +151,10 @@
           ></textarea>
         </label>
         <label>
-          Waypoint name (optional)
+          Course name (optional)
           <input id="name" name="name" placeholder="e.g. Trailhead" />
         </label>
-        <button id="submit" type="submit">Convert &amp; download GPX</button>
+        <button id="submit" type="submit">Convert &amp; download</button>
         <div id="status" class="status" role="status" aria-live="polite"></div>
       </form>
 
@@ -170,7 +171,7 @@
             Request Body (JSON):
             <code>{ "text": "Shortcut Input" }</code> (use the variable for the value)
           </li>
-          <li>Save File — choose iCloud Drive / Files; name it <code>waypoint.gpx</code></li>
+          <li>Save File — choose iCloud Drive / Files; name it <code>course.tcx</code></li>
           <li>(Optional) Open File in Garmin Connect to import</li>
         </ol>
         <p>

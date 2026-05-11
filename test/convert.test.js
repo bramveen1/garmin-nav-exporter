@@ -4,6 +4,7 @@ const {
   extractUrl,
   parseLatLng,
   buildGpx,
+  buildTcx,
   nameFromUrl,
   getQueryParam,
   findUrlAnywhere,
@@ -133,4 +134,54 @@ test('buildGpx escapes name + URL', () => {
   });
   assert.match(gpx, /A &amp; B &lt;c&gt;/);
   assert.match(gpx, /a=1&amp;b=2/);
+});
+
+test('buildTcx emits a TrainingCenterDatabase course', () => {
+  const tcx = buildTcx({
+    lat: 40.7128,
+    lng: -74.006,
+    name: 'Test',
+    sourceUrl: 'https://example.com/x',
+  });
+  assert.match(tcx, /<\?xml version="1.0"/);
+  assert.match(tcx, /<TrainingCenterDatabase [^>]*xmlns="http:\/\/www\.garmin\.com\/xmlschemas\/TrainingCenterDatabase\/v2"/);
+  assert.match(tcx, /<Courses>\s*<Course>/);
+  assert.match(tcx, /<Name>Test<\/Name>/);
+});
+
+test('buildTcx emits 2 trackpoints + a coursepoint at the destination', () => {
+  const tcx = buildTcx({
+    lat: 40.7128,
+    lng: -74.006,
+    name: 'Test',
+    sourceUrl: 'https://example.com/x',
+  });
+  // Offset start trackpoint
+  assert.match(tcx, /<LatitudeDegrees>40\.712790<\/LatitudeDegrees>\s*<LongitudeDegrees>-74\.006000<\/LongitudeDegrees>/);
+  // Destination trackpoint + coursepoint share these coords
+  const destMatches = tcx.match(/<LatitudeDegrees>40\.712800<\/LatitudeDegrees>/g) || [];
+  assert.equal(destMatches.length, 3, 'destination lat appears in EndPosition, 2nd Trackpoint, CoursePoint');
+  assert.match(tcx, /<CoursePoint>[\s\S]*<PointType>Generic<\/PointType>[\s\S]*<\/CoursePoint>/);
+});
+
+test('buildTcx truncates Course name to schema cap (15) and CoursePoint name (10)', () => {
+  const tcx = buildTcx({
+    lat: 1,
+    lng: 2,
+    name: 'This name is definitely too long for the schema',
+    sourceUrl: 'https://example.com/x',
+  });
+  assert.match(tcx, /<Course>\s*<Name>This name is de<\/Name>/);
+  assert.match(tcx, /<CoursePoint>\s*<Name>This name <\/Name>/);
+});
+
+test('buildTcx escapes name + source URL', () => {
+  const tcx = buildTcx({
+    lat: 1,
+    lng: 2,
+    name: 'A & <b>',
+    sourceUrl: 'https://x/?a=1&b=2',
+  });
+  assert.match(tcx, /A &amp; &lt;b&gt;/);
+  assert.match(tcx, /<Notes>https:\/\/x\/\?a=1&amp;b=2<\/Notes>/);
 });

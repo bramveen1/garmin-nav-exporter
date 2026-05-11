@@ -242,6 +242,72 @@ function buildGpx({ lat, lng, name, sourceUrl }) {
 `;
 }
 
+// TCX Course file. Garmin Connect mobile recognizes this as a Course directly, skipping
+// the "course vs activity vs saved location" type picker that GPX triggers. Same 2-point
+// offset trick as GPX since a course needs >=2 trackpoints. CoursePoint marks the pin
+// with a labeled icon on the device map.
+//
+// Schema caps: Course/Name is Token_15 (max 15 chars), CoursePoint/Name is Token_10.
+function buildTcx({ lat, lng, name, sourceUrl }) {
+  const startTime = new Date();
+  const endTime = new Date(startTime.getTime() + 1000);
+  const startTs = startTime.toISOString();
+  const endTs = endTime.toISOString();
+  const rawName = name && name.trim() ? name.trim() : 'Google Maps Pin';
+  const courseName = escapeXml(rawName.slice(0, 15));
+  const pointName = escapeXml(rawName.slice(0, 10));
+  const startLat = lat - 0.00001;
+  const startLng = lng;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
+  <Courses>
+    <Course>
+      <Name>${courseName}</Name>
+      <Lap>
+        <TotalTimeSeconds>1</TotalTimeSeconds>
+        <DistanceMeters>1.11</DistanceMeters>
+        <BeginPosition>
+          <LatitudeDegrees>${startLat.toFixed(6)}</LatitudeDegrees>
+          <LongitudeDegrees>${startLng.toFixed(6)}</LongitudeDegrees>
+        </BeginPosition>
+        <EndPosition>
+          <LatitudeDegrees>${lat.toFixed(6)}</LatitudeDegrees>
+          <LongitudeDegrees>${lng.toFixed(6)}</LongitudeDegrees>
+        </EndPosition>
+        <Intensity>Active</Intensity>
+      </Lap>
+      <Track>
+        <Trackpoint>
+          <Time>${startTs}</Time>
+          <Position>
+            <LatitudeDegrees>${startLat.toFixed(6)}</LatitudeDegrees>
+            <LongitudeDegrees>${startLng.toFixed(6)}</LongitudeDegrees>
+          </Position>
+        </Trackpoint>
+        <Trackpoint>
+          <Time>${endTs}</Time>
+          <Position>
+            <LatitudeDegrees>${lat.toFixed(6)}</LatitudeDegrees>
+            <LongitudeDegrees>${lng.toFixed(6)}</LongitudeDegrees>
+          </Position>
+        </Trackpoint>
+      </Track>
+      <CoursePoint>
+        <Name>${pointName}</Name>
+        <Time>${endTs}</Time>
+        <Position>
+          <LatitudeDegrees>${lat.toFixed(6)}</LatitudeDegrees>
+          <LongitudeDegrees>${lng.toFixed(6)}</LongitudeDegrees>
+        </Position>
+        <PointType>Generic</PointType>
+        <Notes>${escapeXml(sourceUrl)}</Notes>
+      </CoursePoint>
+    </Course>
+  </Courses>
+</TrainingCenterDatabase>
+`;
+}
+
 function send(res, status, body, headers = {}) {
   res.statusCode = status;
   for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
@@ -417,16 +483,20 @@ module.exports = async function handler(req, res) {
     nameFromUrl(url) ||
     '';
 
-  const gpx = buildGpx({
-    lat: coords.lat,
-    lng: coords.lng,
-    name: finalName,
-    sourceUrl: resolved,
-  });
+  // TCX is the default — Garmin Connect mobile imports it straight as a Course (no type
+  // picker). Pass ?gpx=1 for the GPX route format used by non-Garmin tools.
+  const wantGpx = query.get('gpx') === '1' || body.gpx === true;
+  const payload = wantGpx
+    ? buildGpx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved })
+    : buildTcx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved });
+  const ext = wantGpx ? 'gpx' : 'tcx';
+  const contentType = wantGpx
+    ? 'application/gpx+xml; charset=utf-8'
+    : 'application/vnd.garmin.tcx+xml; charset=utf-8';
 
-  const filename = `${safeFilename(finalName)}.gpx`;
-  send(res, 200, gpx, {
-    'Content-Type': 'application/gpx+xml; charset=utf-8',
+  const filename = `${safeFilename(finalName)}.${ext}`;
+  send(res, 200, payload, {
+    'Content-Type': contentType,
     'Content-Disposition': `attachment; filename="${filename}"`,
     'Cache-Control': 'no-store',
   });
@@ -435,6 +505,7 @@ module.exports = async function handler(req, res) {
 module.exports.extractUrl = extractUrl;
 module.exports.parseLatLng = parseLatLng;
 module.exports.buildGpx = buildGpx;
+module.exports.buildTcx = buildTcx;
 module.exports.resolveShortUrl = resolveShortUrl;
 module.exports.fetchCoordsFromPage = fetchCoordsFromPage;
 module.exports.geocodeAddress = geocodeAddress;

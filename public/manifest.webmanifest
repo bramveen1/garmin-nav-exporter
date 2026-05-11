@@ -1,7 +1,7 @@
 {
-  "name": "Maps to GPX (Garmin)",
-  "short_name": "Maps→GPX",
-  "description": "Convert a shared Google Maps location into a GPX waypoint for Garmin.",
+  "name": "Maps to Garmin",
+  "short_name": "Maps→Garmin",
+  "description": "Convert a shared Google Maps location into a TCX course for Garmin (GPX optional).",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
