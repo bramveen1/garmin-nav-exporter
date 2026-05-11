@@ -68,7 +68,6 @@ test('buildGpx emits valid GPX with provided name', () => {
   });
   assert.match(gpx, /<\?xml version="1.0"/);
   assert.match(gpx, /<gpx[^>]+version="1.1"/);
-  assert.match(gpx, /<wpt lat="40.712800" lon="-74.006000">/);
   assert.match(gpx, /<name>Test Point<\/name>/);
 });
 
@@ -82,6 +81,16 @@ test('buildGpx emits a 2-point route so Garmin Connect imports it as a course', 
   assert.match(gpx, /<rte>/);
   assert.match(gpx, /<rtept lat="40\.712790" lon="-74\.006000">/);
   assert.match(gpx, /<rtept lat="40\.712800" lon="-74\.006000">/);
+});
+
+test('buildGpx omits <wpt> so Connect skips the course/waypoint type picker', () => {
+  const gpx = buildGpx({
+    lat: 40.7128,
+    lng: -74.006,
+    name: 'Test Point',
+    sourceUrl: 'https://example.com/x',
+  });
+  assert.doesNotMatch(gpx, /<wpt[\s>]/);
 });
 
 test('nameFromUrl pulls first part of q= as place name', () => {

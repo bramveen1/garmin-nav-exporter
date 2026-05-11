@@ -212,30 +212,27 @@ function escapeXml(s) {
 
 function buildGpx({ lat, lng, name, sourceUrl }) {
   const ts = new Date().toISOString();
-  const wptName = escapeXml(name && name.trim() ? name.trim() : 'Google Maps Pin');
-  // Garmin Connect's course import rejects single-waypoint GPX ("File is not a course type").
-  // Emit a 2-point route with a ~1m offset start so the file imports as a course; keep
-  // the wpt so other tools still see the pin.
+  const rteName = escapeXml(name && name.trim() ? name.trim() : 'Google Maps Pin');
+  // Single-waypoint GPX gets rejected by Garmin Connect ("File is not a course type"), and
+  // a GPX with both <wpt> and <rte> triggers the "course or saved location?" type picker on
+  // import. Emit only a 2-point <rte> with a ~1m offset start so Connect classifies it as a
+  // course directly. Destination is the second rtept.
   const startLat = lat - 0.00001;
   const startLng = lng;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="garmin-nav-exporter" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <metadata>
-    <name>${wptName}</name>
+    <name>${rteName}</name>
     <time>${ts}</time>
     <link href="${escapeXml(sourceUrl)}"><text>Source</text></link>
   </metadata>
-  <wpt lat="${lat.toFixed(6)}" lon="${lng.toFixed(6)}">
-    <name>${wptName}</name>
-    <sym>Flag, Blue</sym>
-  </wpt>
   <rte>
-    <name>${wptName}</name>
+    <name>${rteName}</name>
     <rtept lat="${startLat.toFixed(6)}" lon="${startLng.toFixed(6)}">
       <name>Start</name>
     </rtept>
     <rtept lat="${lat.toFixed(6)}" lon="${lng.toFixed(6)}">
-      <name>${wptName}</name>
+      <name>${rteName}</name>
     </rtept>
   </rte>
 </gpx>
@@ -483,20 +480,18 @@ module.exports = async function handler(req, res) {
     nameFromUrl(url) ||
     '';
 
-  // TCX is the default — Garmin Connect mobile imports it straight as a Course (no type
-  // picker). Pass ?gpx=1 for the GPX route format used by non-Garmin tools.
-  const wantGpx = query.get('gpx') === '1' || body.gpx === true;
-  const payload = wantGpx
-    ? buildGpx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved })
-    : buildTcx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved });
-  const ext = wantGpx ? 'gpx' : 'tcx';
-  // application/octet-stream for TCX: iOS doesn't ship a UTI for the vendor TCX MIME, so a
-  // file saved with that MIME gets a generic "data" classification and Garmin Connect doesn't
-  // appear in the "Open in" picker. Octet-stream lets iOS classify by the .tcx extension via
-  // Connect's own UTI declaration. GPX uses its standard MIME since iOS routes that correctly.
-  const contentType = wantGpx
-    ? 'application/gpx+xml; charset=utf-8'
-    : 'application/octet-stream';
+  // GPX is the default: Garmin Connect on iOS doesn't register .tcx as a known file type,
+  // so a .tcx never reaches Connect via the iOS share sheet. Pure-<rte> GPX, on the other
+  // hand, gets classified as a course directly (no "course or saved location" picker).
+  // Pass ?tcx=1 for TCX, which works for Garmin Connect web uploads.
+  const wantTcx = query.get('tcx') === '1' || body.tcx === true;
+  const payload = wantTcx
+    ? buildTcx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved })
+    : buildGpx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved });
+  const ext = wantTcx ? 'tcx' : 'gpx';
+  const contentType = wantTcx
+    ? 'application/octet-stream'
+    : 'application/gpx+xml; charset=utf-8';
 
   const filename = `${safeFilename(finalName)}.${ext}`;
   send(res, 200, payload, {

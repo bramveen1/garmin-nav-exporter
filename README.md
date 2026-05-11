@@ -1,8 +1,8 @@
 # garmin-nav-exporter
 
 A tiny PWA + serverless function that turns a shared **Google Maps** location
-into a **TCX course file** you can import into Garmin Connect or copy onto a
-Garmin Edge / GPSMAP unit. GPX is available as a fallback for non-Garmin tools.
+into a **GPX course file** you can import into Garmin Connect or copy onto a
+Garmin Edge / GPSMAP unit.
 
 Single-shot scope: one shared link → one course. No turn-by-turn routing, no
 multi-stop trips, no third-party mapping services.
@@ -10,12 +10,15 @@ multi-stop trips, no third-party mapping services.
 ## How it works
 
 ```
-Maps share → /api/convert (POST JSON) → TCX course download (or GPX with ?gpx=1)
+Maps share → /api/convert (POST JSON) → GPX course download (or TCX with ?tcx=1)
 ```
 
-TCX is the default because Garmin Connect mobile imports it directly as a
-Course — no "is this a course / activity / saved location?" type picker. Pass
-`?gpx=1` (or `{"gpx": true}` in the body) to get the GPX route format instead.
+The output is a pure-route GPX (a 2-point `<rte>` with the start ~1m before the
+destination). Garmin Connect classifies it as a course directly, skipping the
+"course or saved location?" type picker that mixed waypoint/route GPX files
+trigger. Pass `?tcx=1` (or `{"tcx": true}` in the body) for TCX instead — TCX
+works for Garmin Connect web uploads, but Garmin Connect for iOS does not claim
+the `.tcx` extension via UTI, so it won't appear as an "Open in" target there.
 
 The API understands three Google Maps URL shapes:
 
@@ -47,7 +50,7 @@ Content-Type: application/json | text/plain | application/x-www-form-urlencoded
 { "url": "...", "name": "Trailhead" }
 ```
 
-Query-string params (`?url=`, `?text=`, `?name=`, `?gpx=1`, `?debug=1`) work on
+Query-string params (`?url=`, `?text=`, `?name=`, `?tcx=1`, `?debug=1`) work on
 both GET and POST; on POST they override the body if both are present.
 
 Append `?debug=1` to get an echo of the parsed body and the URL the server
@@ -58,7 +61,7 @@ Responses:
 
 | Status | Body                                                                                              |
 | ------ | ------------------------------------------------------------------------------------------------- |
-| 200    | `application/vnd.garmin.tcx+xml` body (`application/gpx+xml` with `?gpx=1`), attachment download  |
+| 200    | `application/gpx+xml` body (`application/octet-stream` with `?tcx=1`), attachment download        |
 | 400    | `{ "error": "no_url", "message": "...", "hint": "..." }`                                          |
 | 422    | `{ "error": "no_coords", "message": "...", "resolvedUrl": "..." }`                                |
 | 502    | `{ "error": "redirect_failed", "message": "...", "detail": "..." }`                               |
@@ -71,8 +74,8 @@ Responses:
 2. Menu → **Add to Home Screen** (or **Install app**).
 3. From Google Maps: **Share** → pick **Maps→Garmin**. The app opens with the
    shared text prefilled and auto-converts.
-4. Open the resulting `.tcx` with the Garmin Connect app — it imports straight
-   as a Course. (Or upload it at <https://connect.garmin.com>, or copy to
+4. Open the resulting `.gpx` with the Garmin Connect app — it imports as a
+   course. (Or upload it at <https://connect.garmin.com>, or copy to
    `GARMIN/NewFiles` over USB.)
 
 ### iOS
@@ -88,8 +91,8 @@ iOS does not support Web Share Target, so use a Shortcut. Create one called
    * URL: the *Text* from step 3
    * Method: `GET`
    * Request Body: *(none)*
-5. **Save File** → choose iCloud Drive (or Files), name it `course.tcx`
-   (append `&gpx=1` in step 3 if you need `.gpx` for another tool).
+5. **Save File** → choose iCloud Drive (or Files), name it `course.gpx`
+   (append `&tcx=1` in step 3 for TCX — useful only for Connect web uploads).
 6. (Optional) **Open File** in Garmin Connect to import directly.
 
 In the Shortcut settings, enable **Show in Share Sheet** and check **URLs**.
