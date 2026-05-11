@@ -159,10 +159,11 @@
       </form>
 
       <details>
-        <summary>iOS Shortcut</summary>
+        <summary>Install on iOS</summary>
         <p>
-          Build a Shortcut named “Save to Garmin” with these actions, then add it to your Share
-          Sheet so it appears when sharing from Maps:
+          iOS doesn’t support Web Share Target, so use a Shortcut. Build one named
+          “Save to Garmin” with these actions, then add it to your Share Sheet so it
+          appears when sharing from Maps:
         </p>
         <ol>
           <li>Receive <em>URLs</em> from Share Sheet</li>
@@ -174,10 +175,22 @@
           <li>Save File — choose iCloud Drive / Files; name it <code>course.gpx</code></li>
           <li>(Optional) Open File in Garmin Connect to import</li>
         </ol>
+      </details>
+
+      <details>
+        <summary>Install on Android</summary>
         <p>
-          On Android, install this PWA from the browser menu (“Add to Home screen”). The Maps share
-          target will then list it directly.
+          Android Chrome supports Web Share Target, so the PWA can receive shares from
+          Maps directly:
         </p>
+        <ol>
+          <li>Open this site in Chrome</li>
+          <li>Menu → <strong>Add to Home screen</strong> (or <strong>Install app</strong>)</li>
+          <li>From Google Maps: <strong>Share</strong> → pick <strong>Maps→Garmin</strong>.
+            The app opens with the shared text prefilled and auto-converts.</li>
+          <li>Open the resulting <code>.gpx</code> with the Garmin Connect app to import as
+            a course.</li>
+        </ol>
       </details>
 
       <footer>
