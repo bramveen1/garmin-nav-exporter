@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b6" />
+    <title>Maps -> GPX</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7f8;
+        --fg: #111;
+        --muted: #555;
+        --accent: #0b6;
+        --card: #fff;
+        --border: #ddd;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111;
+          --fg: #eee;
+          --muted: #aaa;
+          --card: #1d1d1d;
+          --border: #333;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font: 16px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+          env(safe-area-inset-left);
+      }
+      main {
+        max-width: 36rem;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin: 0.25rem 0 0.25rem;
+      }
+      p.lede {
+        color: var(--muted);
+        margin: 0 0 1rem;
+      }
+      form {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      label {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 0.65rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+      }
+      textarea {
+        min-height: 4.5rem;
+        resize: vertical;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        background: var(--accent);
+        color: #fff;
+        font: 600 1rem/1 inherit;
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: progress;
+      }
+      .status {
+        margin-top: 1rem;
+        min-height: 1.4em;
+        font-size: 0.95rem;
+      }
+      .status.error {
+        color: #c33;
+      }
+      .status.ok {
+        color: var(--accent);
+      }
+      details {
+        margin-top: 1.25rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+      }
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      code {
+        background: rgba(127, 127, 127, 0.15);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      footer {
+        margin-top: 2rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Maps → GPX</h1>
+      <p class="lede">
+        Paste a Google Maps share link (or shared text) to download a GPX waypoint for Garmin.
+      </p>
+
+      <form id="form">
+        <label>
+          Google Maps URL or shared text
+          <textarea
+            id="input"
+            name="input"
+            placeholder="https://maps.app.goo.gl/...  or  paste the whole share text"
+            required
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+          ></textarea>
+        </label>
+        <label>
+          Waypoint name (optional)
+          <input id="name" name="name" placeholder="e.g. Trailhead" />
+        </label>
+        <button id="submit" type="submit">Convert &amp; download GPX</button>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </form>
+
+      <details>
+        <summary>iOS Shortcut</summary>
+        <p>
+          Build a Shortcut named “Save to Garmin” with these actions, then add it to your Share
+          Sheet so it appears when sharing from Maps:
+        </p>
+        <ol>
+          <li>Receive <em>URLs</em> and <em>Text</em> from Share Sheet</li>
+          <li>Get Contents of URL — Method <code>POST</code>, URL
+            <code id="endpoint"></code>, Headers <code>Content-Type: application/json</code>,
+            Request Body (JSON):
+            <code>{ "text": "Shortcut Input" }</code> (use the variable for the value)
+          </li>
+          <li>Save File — choose iCloud Drive / Files; name it <code>waypoint.gpx</code></li>
+          <li>(Optional) Open File in Garmin Connect to import</li>
+        </ol>
+        <p>
+          On Android, install this PWA from the browser menu (“Add to Home screen”). The Maps share
+          target will then list it directly.
+        </p>
+      </details>
+
+      <footer>
+        Open source · single waypoints only · no tracking
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
