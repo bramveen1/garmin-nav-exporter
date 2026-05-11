@@ -6,6 +6,7 @@ const {
   buildGpx,
   nameFromUrl,
   getQueryParam,
+  findUrlAnywhere,
 } = require('../api/convert.js');
 
 test('extractUrl pulls long-form Maps URL out of share text', () => {
@@ -89,6 +90,26 @@ test('getQueryParam decodes plus-encoded address', () => {
   // URL parses + as a literal '+'; for queries it should be treated as space.
   // We rely on URLSearchParams which decodes + as space.
   assert.equal(getQueryParam(url, 'q'), 'Bowie, Regentesselaan 24A');
+});
+
+test('findUrlAnywhere picks URL from body.text', () => {
+  const url = 'https://maps.app.goo.gl/abc123';
+  assert.equal(findUrlAnywhere({ text: url }, JSON.stringify({ text: url })), url);
+});
+
+test('findUrlAnywhere finds URL in nested object', () => {
+  const url = 'https://maps.app.goo.gl/abc123';
+  const body = { shortcut: { input: [{ value: 'Pinned: ' + url }] } };
+  assert.equal(findUrlAnywhere(body, JSON.stringify(body)), url);
+});
+
+test('findUrlAnywhere falls back to raw body string', () => {
+  const raw = 'https://maps.app.goo.gl/abc123';
+  assert.equal(findUrlAnywhere({}, raw), raw);
+});
+
+test('findUrlAnywhere returns null when no URL anywhere', () => {
+  assert.equal(findUrlAnywhere({ foo: 'bar' }, '{"foo":"bar"}'), null);
 });
 
 test('buildGpx escapes name + URL', () => {

@@ -23,25 +23,35 @@ The API understands three Google Maps URL shapes:
 
 If the body field is `text` rather than `url`, the URL is extracted from
 anywhere in the string (Android Maps shares typically include a leading title
-line and a trailing URL).
+line and a trailing URL). The server also scans nested JSON values and
+falls back to the raw body, so awkward client serializations still work.
+
+New-style "place share" links (`maps.app.goo.gl/...` that resolve to
+`google.com/maps?q=<address>&ftid=<id>` without coords) are handled too: the
+API scrapes the Maps page for the viewport center, and falls back to OSM
+Nominatim geocoding of the address.
 
 ## API
 
 ```
 POST /api/convert
-Content-Type: application/json
+Content-Type: application/json | text/plain | application/x-www-form-urlencoded
 
 { "url": "https://maps.app.goo.gl/abcDEF123" }
 { "text": "Pinned location\nhttps://www.google.com/maps/place/...@40.7,-74.0,17z" }
 { "url": "...", "name": "Trailhead" }
 ```
 
+Append `?debug=1` to get an echo of the parsed body and the URL the server
+extracted, instead of a GPX file. Useful when an iOS Shortcut or external
+client misbehaves.
+
 Responses:
 
 | Status | Body                                                              |
 | ------ | ----------------------------------------------------------------- |
 | 200    | `application/gpx+xml` body, `Content-Disposition: attachment`     |
-| 400    | `{ "error": "no_url" \| "invalid_json", "message": "..." }`        |
+| 400    | `{ "error": "no_url", "message": "...", "hint": "..." }`           |
 | 422    | `{ "error": "no_coords", "message": "...", "resolvedUrl": "..." }` |
 | 502    | `{ "error": "redirect_failed", "message": "...", "detail": "..." }`|
 
@@ -63,17 +73,25 @@ iOS does not support Web Share Target, so use a Shortcut. Create one called
 **Save to Garmin** with these actions:
 
 1. **Receive** *URLs* and *Text* from Share Sheet.
-2. **Get Contents of URL**
+2. **Get URLs from Input** (this turns the share into a list of URL strings).
+3. **Get Item from List** → **First Item** (the Maps short link).
+4. **Get Contents of URL**
    * URL: `https://<your-deployment>/api/convert`
    * Method: `POST`
    * Headers: `Content-Type: application/json`
    * Request Body: **JSON** →
-     `text` = *Shortcut Input* (the magic variable)
-3. **Save File** → choose iCloud Drive (or Files), name it `waypoint.gpx`.
-4. (Optional) **Open File** in Garmin Connect to import directly.
+     `text` = the *First Item* magic variable from step 3
+5. **Save File** → choose iCloud Drive (or Files), name it `waypoint.gpx`.
+6. (Optional) **Open File** in Garmin Connect to import directly.
 
 In the Shortcut settings, enable **Show in Share Sheet** and check **URLs** +
 **Text** as accepted input. From Maps: **Share** → **Save to Garmin**.
+
+The API is tolerant: if you skip steps 2–3 and just send *Shortcut Input* (or
+anything else), it scans the whole JSON body for a Maps URL. You can also POST
+the raw URL as `text/plain`, or send it as form-urlencoded. If something looks
+off, append `?debug=1` to the URL in step 4 — the response will echo back
+exactly what reached the server.
 
 You can also just open the deployed site and paste the link into the textarea.
 

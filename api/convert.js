@@ -248,27 +248,75 @@ function safeFilename(name) {
   );
 }
 
+// Returns { parsed, raw } where `parsed` is the structured body (object) if it can be
+// decoded as JSON or x-www-form-urlencoded, and `raw` is the original payload as a string.
+// Always keeping `raw` lets us fall back to URL extraction across the whole body for
+// clients (iOS Shortcuts, etc.) that serialize the URL in an unexpected shape.
 async function readBody(req) {
+  const ct = ((req.headers && req.headers['content-type']) || '').toLowerCase();
+  let raw = '';
+  let parsed = null;
+
   if (req.body !== undefined && req.body !== null) {
     if (typeof req.body === 'string') {
+      raw = req.body;
+    } else if (typeof req.body === 'object') {
+      parsed = req.body;
       try {
-        return JSON.parse(req.body);
+        raw = JSON.stringify(req.body);
       } catch {
-        return null;
+        raw = '';
       }
     }
-    return req.body;
+  } else {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    raw = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
   }
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  if (chunks.length === 0) return {};
-  const raw = Buffer.concat(chunks).toString('utf8');
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
+
+  if (parsed === null && raw) {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      if (ct.includes('application/x-www-form-urlencoded')) {
+        try {
+          parsed = Object.fromEntries(new URLSearchParams(raw));
+        } catch {
+          parsed = null;
+        }
+      }
+    }
   }
+
+  if (parsed === null) parsed = {};
+  return { parsed, raw };
+}
+
+// Walk the parsed body and yield every string value (including those nested in arrays
+// or objects). Used as a last-resort URL search when the Shortcut/client serializes
+// the input under an unexpected key.
+function* stringValues(value) {
+  if (value == null) return;
+  if (typeof value === 'string') {
+    yield value;
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) yield* stringValues(v);
+    return;
+  }
+  if (typeof value === 'object') {
+    for (const v of Object.values(value)) yield* stringValues(v);
+  }
+}
+
+function findUrlAnywhere(parsed, raw) {
+  for (const s of stringValues(parsed)) {
+    const u = extractUrl(s);
+    if (u) return u;
+  }
+  if (raw) return extractUrl(raw);
+  return null;
 }
 
 module.exports = async function handler(req, res) {
@@ -280,16 +328,28 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST')
     return sendJson(res, 405, { error: 'method_not_allowed', message: 'Use POST' });
 
-  const body = await readBody(req);
-  if (body === null)
-    return sendJson(res, 400, { error: 'invalid_json', message: 'Body must be valid JSON' });
+  const { parsed: body, raw } = await readBody(req);
 
-  const candidate = body.url || body.text || '';
-  const url = extractUrl(candidate);
+  // Debug echo: client adds ?debug=1 or { debug: true } and gets back the request shape.
+  // Useful for inspecting what an iOS Shortcut actually sends.
+  const debugRequested =
+    /[?&]debug=1\b/.test(req.url || '') || (body && body.debug === true);
+  if (debugRequested) {
+    return sendJson(res, 200, {
+      contentType: (req.headers && req.headers['content-type']) || null,
+      parsedBody: body,
+      rawBody: raw,
+      rawBodyLength: raw.length,
+      extractedUrl: findUrlAnywhere(body, raw),
+    });
+  }
+
+  const url = findUrlAnywhere(body, raw);
   if (!url)
     return sendJson(res, 400, {
       error: 'no_url',
-      message: 'No Google Maps URL found in url/text',
+      message: 'No Google Maps URL found in body',
+      hint: 'Send {"text":"<maps URL>"} or {"url":"<maps URL>"}, or POST the raw URL as text/plain.',
     });
 
   let resolved = url;
@@ -347,3 +407,5 @@ module.exports.fetchCoordsFromPage = fetchCoordsFromPage;
 module.exports.geocodeAddress = geocodeAddress;
 module.exports.nameFromUrl = nameFromUrl;
 module.exports.getQueryParam = getQueryParam;
+module.exports.findUrlAnywhere = findUrlAnywhere;
+module.exports.readBody = readBody;
