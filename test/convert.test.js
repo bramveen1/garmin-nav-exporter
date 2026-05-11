@@ -1,6 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { extractUrl, parseLatLng, buildGpx } = require('../api/convert.js');
+const {
+  extractUrl,
+  parseLatLng,
+  buildGpx,
+  nameFromUrl,
+  getQueryParam,
+} = require('../api/convert.js');
 
 test('extractUrl pulls long-form Maps URL out of share text', () => {
   const text = 'Pinned location\nhttps://www.google.com/maps/place/Foo/@40.123,-74.456,15z';
@@ -62,6 +68,27 @@ test('buildGpx emits valid GPX with provided name', () => {
   assert.match(gpx, /<gpx[^>]+version="1.1"/);
   assert.match(gpx, /<wpt lat="40.712800" lon="-74.006000">/);
   assert.match(gpx, /<name>Test Point<\/name>/);
+});
+
+test('nameFromUrl pulls first part of q= as place name', () => {
+  const url =
+    'https://www.google.com/maps?q=Bowie,+Regentesselaan+24A,+2562+CS+Den+Haag&ftid=0x47c5b100b2cd03bb:0x7d8022750de4848b';
+  assert.equal(nameFromUrl(url), 'Bowie');
+});
+
+test('nameFromUrl returns null when q= is coordinates', () => {
+  assert.equal(nameFromUrl('https://maps.google.com/?q=52.0815,4.2795'), null);
+});
+
+test('nameFromUrl returns null when no q= param', () => {
+  assert.equal(nameFromUrl('https://www.google.com/maps/place/Foo/@40.7,-74'), null);
+});
+
+test('getQueryParam decodes plus-encoded address', () => {
+  const url = 'https://www.google.com/maps?q=Bowie,+Regentesselaan+24A';
+  // URL parses + as a literal '+'; for queries it should be treated as space.
+  // We rely on URLSearchParams which decodes + as space.
+  assert.equal(getQueryParam(url, 'q'), 'Bowie, Regentesselaan 24A');
 });
 
 test('buildGpx escapes name + URL', () => {
