@@ -165,12 +165,12 @@
           Sheet so it appears when sharing from Maps:
         </p>
         <ol>
-          <li>Receive <em>URLs</em> and <em>Text</em> from Share Sheet</li>
-          <li>Get Contents of URL — Method <code>POST</code>, URL
-            <code id="endpoint"></code>, Headers <code>Content-Type: application/json</code>,
-            Request Body (JSON):
-            <code>{ "text": "Shortcut Input" }</code> (use the variable for the value)
-          </li>
+          <li>Receive <em>URLs</em> from Share Sheet</li>
+          <li>URL Encode <em>Shortcut Input</em> (Text Encoding → URL Encode)</li>
+          <li>Text — <code><span id="endpoint"></span>?url=</code> followed by the
+            <em>URL Encoded Text</em> variable from step 2</li>
+          <li>Get Contents of URL — URL: the <em>Text</em> from step 3, Method <code>GET</code>,
+            Request Body: <em>(none)</em></li>
           <li>Save File — choose iCloud Drive / Files; name it <code>course.gpx</code></li>
           <li>(Optional) Open File in Garmin Connect to import</li>
         </ol>
@@ -181,7 +181,7 @@
       </details>
 
       <footer>
-        Open source · single waypoints only · no tracking
+        Open source · single-pin courses only · no tracking
       </footer>
     </main>
     <script src="/app.js" defer></script>
