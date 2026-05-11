@@ -321,35 +321,49 @@ function findUrlAnywhere(parsed, raw) {
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return send(res, 204, '');
-  if (req.method !== 'POST')
-    return sendJson(res, 405, { error: 'method_not_allowed', message: 'Use POST' });
+  if (req.method !== 'GET' && req.method !== 'POST')
+    return sendJson(res, 405, { error: 'method_not_allowed', message: 'Use GET or POST' });
 
-  const { parsed: body, raw } = await readBody(req);
+  let body = {};
+  let raw = '';
+  if (req.method === 'POST') {
+    const parsed = await readBody(req);
+    body = parsed.parsed;
+    raw = parsed.raw;
+  }
 
-  // Debug echo: client adds ?debug=1 or { debug: true } and gets back the request shape.
-  // Useful for inspecting what an iOS Shortcut actually sends.
+  const reqUrl = new URL(req.url || '/', 'http://x');
+  const query = reqUrl.searchParams;
+
   const debugRequested =
-    /[?&]debug=1\b/.test(req.url || '') || (body && body.debug === true);
+    query.get('debug') === '1' || (body && body.debug === true);
   if (debugRequested) {
     return sendJson(res, 200, {
+      method: req.method,
       contentType: (req.headers && req.headers['content-type']) || null,
+      query: Object.fromEntries(query),
       parsedBody: body,
       rawBody: raw,
       rawBodyLength: raw.length,
-      extractedUrl: findUrlAnywhere(body, raw),
+      extractedUrl:
+        extractUrl(query.get('url') || query.get('text') || '') ||
+        findUrlAnywhere(body, raw),
     });
   }
 
-  const url = findUrlAnywhere(body, raw);
+  const url =
+    extractUrl(query.get('url') || query.get('text') || '') ||
+    findUrlAnywhere(body, raw);
   if (!url)
     return sendJson(res, 400, {
       error: 'no_url',
-      message: 'No Google Maps URL found in body',
-      hint: 'Send {"text":"<maps URL>"} or {"url":"<maps URL>"}, or POST the raw URL as text/plain.',
+      message: 'No Google Maps URL found in request',
+      hint:
+        'Pass ?url=<maps URL> in the query string, or POST {"text":"<maps URL>"} as JSON, or POST the raw URL as text/plain.',
     });
 
   let resolved = url;
@@ -381,8 +395,13 @@ module.exports = async function handler(req, res) {
       resolvedUrl: resolved,
     });
 
+  const queryName = (query.get('name') || '').trim();
   const finalName =
-    (body.name && body.name.trim()) || nameFromUrl(resolved) || nameFromUrl(url) || '';
+    queryName ||
+    (body.name && body.name.trim()) ||
+    nameFromUrl(resolved) ||
+    nameFromUrl(url) ||
+    '';
 
   const gpx = buildGpx({
     lat: coords.lat,

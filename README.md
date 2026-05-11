@@ -34,6 +34,7 @@ Nominatim geocoding of the address.
 ## API
 
 ```
+GET  /api/convert?url=<maps URL>[&name=<waypoint name>]
 POST /api/convert
 Content-Type: application/json | text/plain | application/x-www-form-urlencoded
 
@@ -41,6 +42,9 @@ Content-Type: application/json | text/plain | application/x-www-form-urlencoded
 { "text": "Pinned location\nhttps://www.google.com/maps/place/...@40.7,-74.0,17z" }
 { "url": "...", "name": "Trailhead" }
 ```
+
+Query-string params (`?url=`, `?text=`, `?name=`, `?debug=1`) work on both GET
+and POST; on POST they override the body if both are present.
 
 Append `?debug=1` to get an echo of the parsed body and the URL the server
 extracted, instead of a GPX file. Useful when an iOS Shortcut or external
@@ -72,26 +76,26 @@ Responses:
 iOS does not support Web Share Target, so use a Shortcut. Create one called
 **Save to Garmin** with these actions:
 
-1. **Receive** *URLs* and *Text* from Share Sheet.
-2. **Get URLs from Input** (this turns the share into a list of URL strings).
-3. **Get Item from List** → **First Item** (the Maps short link).
+1. **Receive** *URLs* from Share Sheet.
+2. **URL Encode** *Shortcut Input* (Text Encoding → URL Encode).
+3. **Text** action: `https://<your-deployment>/api/convert?url=`
+   followed by the *URL Encoded Text* magic variable from step 2.
 4. **Get Contents of URL**
-   * URL: `https://<your-deployment>/api/convert`
-   * Method: `POST`
-   * Headers: `Content-Type: application/json`
-   * Request Body: **JSON** →
-     `text` = the *First Item* magic variable from step 3
+   * URL: the *Text* from step 3
+   * Method: `GET`
+   * Request Body: *(none)*
 5. **Save File** → choose iCloud Drive (or Files), name it `waypoint.gpx`.
 6. (Optional) **Open File** in Garmin Connect to import directly.
 
-In the Shortcut settings, enable **Show in Share Sheet** and check **URLs** +
-**Text** as accepted input. From Maps: **Share** → **Save to Garmin**.
+In the Shortcut settings, enable **Show in Share Sheet** and check **URLs**.
+From Maps: **Share** → **Save to Garmin**.
 
-The API is tolerant: if you skip steps 2–3 and just send *Shortcut Input* (or
-anything else), it scans the whole JSON body for a Maps URL. You can also POST
-the raw URL as `text/plain`, or send it as form-urlencoded. If something looks
-off, append `?debug=1` to the URL in step 4 — the response will echo back
-exactly what reached the server.
+GET with `?url=` is the simplest path because there's no Request Body field to
+get wrong. POST with a JSON body works too — the API accepts JSON, form-
+urlencoded, raw `text/plain`, and falls back to the query string. If something
+looks off, change the URL to `https://<your-deployment>/api/convert?debug=1&url=...`
+and the response will echo back exactly what reached the server (method,
+content-type, body, and the URL it extracted).
 
 You can also just open the deployed site and paste the link into the textarea.
 
