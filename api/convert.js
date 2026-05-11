@@ -490,9 +490,13 @@ module.exports = async function handler(req, res) {
     ? buildGpx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved })
     : buildTcx({ lat: coords.lat, lng: coords.lng, name: finalName, sourceUrl: resolved });
   const ext = wantGpx ? 'gpx' : 'tcx';
+  // application/octet-stream for TCX: iOS doesn't ship a UTI for the vendor TCX MIME, so a
+  // file saved with that MIME gets a generic "data" classification and Garmin Connect doesn't
+  // appear in the "Open in" picker. Octet-stream lets iOS classify by the .tcx extension via
+  // Connect's own UTI declaration. GPX uses its standard MIME since iOS routes that correctly.
   const contentType = wantGpx
     ? 'application/gpx+xml; charset=utf-8'
-    : 'application/vnd.garmin.tcx+xml; charset=utf-8';
+    : 'application/octet-stream';
 
   const filename = `${safeFilename(finalName)}.${ext}`;
   send(res, 200, payload, {
